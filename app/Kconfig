@@ -1,0 +1,38 @@
+# Copyright (c) 2026 HubbleNetwork
+# SPDX-License-Identifier: Apache-2.0
+#
+# This file is the application Kconfig entry point. All application Kconfig
+# options can be defined here or included via other application Kconfig files.
+# You can browse these options using the west targets menuconfig (terminal) or
+# guiconfig (GUI).
+
+menu "Zephyr"
+source "Kconfig.zephyr"
+endmenu
+
+menu "Hubble Network options"
+
+config HUBBLE_DEVICE_KEY
+    string "Cryptography key in base64"
+    default ""
+    help
+	Hubble device's cryptographic key
+
+config HUBBLE_RETRANSMISSION_FREQUENCY
+    int "Internval between packet"
+    default 4
+    help
+	Period between packets transmissions in a given window.
+
+config HUBBLE_SAMPLE_ADV_FREQUENCY
+    int "Frequency to generate new advertisment in seconds"
+    default 28800 # 8 hours
+    help
+        The maximum time to generate a new advertisement packet.
+	It must be less than 24h.
+
+endmenu
+
+module = APP
+module-str = APP
+source "subsys/logging/Kconfig.template.log_config"

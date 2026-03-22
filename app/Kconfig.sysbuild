@@ -1,0 +1,6 @@
+source "share/sysbuild/Kconfig"
+
+config CPUNET_BOARD
+string
+	default "thingy53/nrf5340/cpunet" if $(BOARD) = "thingy53"
+

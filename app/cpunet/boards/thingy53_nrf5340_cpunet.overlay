@@ -1,0 +1,47 @@
+/*
+ * Copyright (c) 2022 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/delete-node/ &sram0_shared;
+
+/ {
+	chosen {
+		/delete-property/ zephyr,ipc_shm;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sram0_shared: memory@20070000 {
+			/* Last 60 kB of sram0 */
+			reg = <0x20070000 0x0f000>;
+		};
+
+		sram_sat_rx: memory@2007F000 {
+			reg = <0x2007F000 0x0800>;
+		};
+
+		sram_sat_tx: memory@2007F800 {
+			reg = <0x2007F800 0x0800>;
+		};
+	};
+
+	ipc {
+		ipc1: ipc1 {
+			compatible = "zephyr,ipc-icmsg";
+			tx-region = <&sram_sat_tx>;
+			rx-region = <&sram_sat_rx>;
+			mboxes = <&mbox 2>, <&mbox 3>;
+			mbox-names = "rx", "tx";
+			status = "okay";
+		};
+	};
+};
+
+&radio {
+	/* Uncomment to enable SPI interface for FEM */
+	fem = <&nrf_radio_fem>;
+};
