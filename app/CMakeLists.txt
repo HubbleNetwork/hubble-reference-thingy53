@@ -12,6 +12,7 @@ target_sources(app PRIVATE src/nvs.c)
 target_sources(app PRIVATE src/sat_board.c)
 target_sources(app PRIVATE src/sensor.c)
 target_sources(app PRIVATE src/shell.c)
+target_sources(app PRIVATE src/button.c)
 
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
 

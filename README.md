@@ -10,8 +10,9 @@ This application implements a dual-mode communication system for the Nordic Thin
 2. [Provisioning a New Device](#provisioning-a-new-device)
 3. [Flashing Thingy53 using nRF-DK as Programmer](#flashing-thingy53-using-nrf-dk-as-programmer)
 4. [Transmission Logic](#transmission-logic)
-5. [Shell Commands](#shell-commands)
-6. [Configuration Options](#configuration-options)
+5. [Hardware Button](#hardware-button)
+6. [Shell Commands](#shell-commands)
+7. [Configuration Options](#configuration-options)
 
 ---
 
@@ -248,6 +249,15 @@ The Thingy53 uses a dual-core architecture:
 - **BLE Advertisement**: Refreshed every `CONFIG_HUBBLE_SAMPLE_ADV_FREQUENCY` seconds (default: 8 hours)
 - **Satellite Windows**: Scheduled based on ephemeris data received from companion app
 - **Retransmission**: Configurable 0-10 seconds between packets during satellite transmission
+
+---
+
+## Hardware Button
+
+The physical button (`sw0`) toggles Bluetooth on and off. Each press checks the current BLE state and switches it:
+
+- **BLE on** → press button → BLE disabled
+- **BLE off** → press button → BLE enabled
 
 ---
 
