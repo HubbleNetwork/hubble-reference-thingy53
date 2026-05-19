@@ -221,9 +221,17 @@ void ble_enable(bool user_requested)
 		goto end;
 	}
 
-	err = ble_adv_start();
-	if (err < 0) {
-		LOG_ERR("Failed to get the advertisement data: %d", err);
+	/* Time is not synced */
+	if (utc_time == 0) {
+		err = ble_init();
+		if (err < 0) {
+			LOG_ERR("Failed to advertise time sync: %d", err);
+		}
+	} else {
+		err = ble_adv_start();
+		if (err < 0) {
+			LOG_ERR("Failed to get the advertisement data: %d", err);
+		}
 	}
 
 end:
