@@ -167,6 +167,18 @@ static int sat_transmission_time_get(void)
 #endif
 }
 
+static size_t _nearest_packet_len_get(size_t pkt_len)
+{
+	if (pkt_len < 4U) {
+		return 4U;
+	} else if (pkt_len < 9U) {
+		return 9U;
+	} else if (pkt_len < 13U) {
+		return 13U;
+	}
+
+	return pkt_len;
+}
 
 int sat_transmit(void)
 {
@@ -211,6 +223,7 @@ int sat_transmit(void)
 		}
 	}
 #endif
+	pkt_len = _nearest_packet_len_get(pkt_len);
 
 	ret = hubble_sat_packet_get(&pkt, pkt_buffer, pkt_len);
 	if (ret != 0) {
