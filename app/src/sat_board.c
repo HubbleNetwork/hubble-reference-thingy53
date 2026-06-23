@@ -169,7 +169,9 @@ static int sat_transmission_time_get(void)
 
 static size_t _nearest_packet_len_get(size_t pkt_len)
 {
-	if (pkt_len < 4U) {
+	if (pkt_len == 0) {
+		return 0U;
+	} else if (pkt_len < 4U) {
 		return 4U;
 	} else if (pkt_len < 9U) {
 		return 9U;
