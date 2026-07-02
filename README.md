@@ -11,8 +11,9 @@ This application implements a dual-mode communication system for the Nordic Thin
 3. [Flashing Thingy53 using nRF-DK as Programmer](#flashing-thingy53-using-nrf-dk-as-programmer)
 4. [Transmission Logic](#transmission-logic)
 5. [Hardware Button](#hardware-button)
-6. [Shell Commands](#shell-commands)
-7. [Configuration Options](#configuration-options)
+6. [LED Indication](#led-indication)
+7. [Shell Commands](#shell-commands)
+8. [Configuration Options](#configuration-options)
 
 ---
 
@@ -261,6 +262,20 @@ The physical button (`sw0`) toggles Bluetooth on and off. Each press checks the 
 
 ---
 
+## LED Indication
+
+When `CONFIG_APP_BLINK_LED` is enabled, an LED blinks for the duration of each satellite transmission window and turns off when the window ends.
+
+The LED color is selected at build time via a Kconfig choice:
+
+| Kconfig symbol          | LED alias | Color        |
+|-------------------------|-----------|--------------|
+| `APP_LED_RED` (default) | `led0`    | Red          |
+| `APP_LED_GREEN`         | `led1`    | Green        |
+| `APP_LED_BLUE`          | `led2`    | Blue         |
+
+---
+
 ## Shell Commands
 
 The application provides a shell interface for runtime configuration and monitoring. Access the shell via UART (115200 baud, 8N1). The shell prompt is `HubbleNetwork:~$ `.
@@ -424,6 +439,22 @@ config HUBBLE_RETRANSMISSION_FREQUENCY
     int "Interval between packets"
     default 4
 ```
+
+---
+
+#### `CONFIG_APP_BLINK_LED`
+
+**Type:** Boolean
+**Default:** disabled
+**Description:** Enables LED blinking during satellite transmission windows. When enabled, a color sub-option must be chosen (see below).
+
+---
+
+#### `CONFIG_APP_LED_RED` / `CONFIG_APP_LED_GREEN` / `CONFIG_APP_LED_BLUE`
+
+**Type:** Choice (mutually exclusive)
+**Default:** `CONFIG_APP_LED_RED`
+**Description:** Selects which on-board LED is used when `CONFIG_APP_BLINK_LED` is enabled. Maps to devicetree aliases `led0` (red), `led1` (green), and `led2` (blue) respectively.
 
 ---
 

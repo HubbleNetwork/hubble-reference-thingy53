@@ -14,6 +14,8 @@ target_sources(app PRIVATE src/sensor.c)
 target_sources(app PRIVATE src/shell.c)
 target_sources(app PRIVATE src/button.c)
 
+target_sources_ifdef(CONFIG_APP_BLINK_LED app PRIVATE src/led.c)
+
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
 include(ExternalProject)

@@ -31,6 +31,34 @@ config HUBBLE_SAMPLE_ADV_FREQUENCY
         The maximum time to generate a new advertisement packet.
 	It must be less than 24h.
 
+config APP_BLINK_LED
+    bool "Blink LED during satellite transmission"
+    select GPIO
+    help
+        Blink the LED on top of the device to inform when
+	it is transmitting to satellite.
+
+if APP_BLINK_LED
+
+choice
+	prompt "LED Color for Satellite transmission"
+	default APP_LED_RED
+	help
+	    Select the led color for during satellite transmission.
+
+config APP_LED_RED
+	bool "Use red led"
+
+config APP_LED_GREEN
+	bool "Use green led"
+
+config APP_LED_BLUE
+	bool "Use blue led"
+
+endchoice
+
+endif # APP_BLINK_LED
+
 endmenu
 
 module = APP

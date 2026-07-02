@@ -17,6 +17,7 @@
 #include "sat_ipc.h"
 #include "app.h"
 #include "ble.h"
+#include "led.h"
 #include "sat.h"
 
 LOG_MODULE_REGISTER(sat);
@@ -233,6 +234,8 @@ int sat_transmit(void)
 	}
 
 	_transmitting = true;
+	(void)led_blink_start();
+
 	HUBBLE_FOR_WHILE(sat_transmission_time_get() * 1000)
 	{
 		ret = hubble_sat_packet_send(&pkt, HUBBLE_SAT_RELIABILITY_NONE);
@@ -241,6 +244,8 @@ int sat_transmit(void)
 		}
 		k_sleep(K_SECONDS(_retransmission_frequency_s));
 	}
+
+	(void)led_blink_stop();
 	_transmitting = false;
 
 	return 0;
