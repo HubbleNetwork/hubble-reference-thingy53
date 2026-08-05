@@ -31,6 +31,7 @@ LOG_MODULE_REGISTER(ble);
 #define SPBLE_PKT_CMD               0x02
 #define SPBLE_CMD_SETUTC            0x02
 #define SPBLE_CMD_SETEPHEMERIS      0x07
+#define SPBLE_CMD_RESETEPHEMERIS    0x08
 
 #define SVC_UUID                                                               \
 	BT_UUID_128_ENCODE(0xef2dc9a1, 0x40be, 0x44b6, 0x9dda, 0x8a00fcd61dc0)
@@ -192,6 +193,9 @@ static ssize_t _chr_write_cb(struct bt_conn *conn,
 					available -= entry_size;
 				}
 			}
+			break;
+		case SPBLE_CMD_RESETEPHEMERIS:
+			sat_pass_clear();
 			break;
 		default:
 			break;

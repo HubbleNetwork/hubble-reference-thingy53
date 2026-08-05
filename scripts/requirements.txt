@@ -2,3 +2,5 @@ clang-format>=15.0.0
 click
 gitlint
 pyhubblenetwork
+bleak
+requests

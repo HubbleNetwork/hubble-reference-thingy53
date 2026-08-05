@@ -82,6 +82,14 @@ int sat_payload_set(enum sat_payload_type type, const uint8_t *data, size_t len)
 int sat_pass_add(uint32_t timestamp, uint16_t duration);
 
 /**
+ * @brief Clear all registered satellite pass windows.
+ *
+ * Resets the schedule table so a companion can upload a fresh set of passes
+ * without rebooting the device.
+ */
+void sat_pass_clear(void);
+
+/**
  * @brief Trigger a SAT transmission with the currently configured payload.
  *
  * Builds a Hubble SAT packet from the active payload, then retransmits it
