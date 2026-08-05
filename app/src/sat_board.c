@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <string.h>
 
 #include <zephyr/logging/log.h>
 #include <zephyr/drivers/fuel_gauge.h>
@@ -272,6 +273,15 @@ int sat_pass_add(uint32_t timestamp, uint16_t duration)
 #endif
 
 	return 0;
+}
+
+void sat_pass_clear(void)
+{
+#ifndef CONFIG_HUBBLE_SAMPLE_DEBUG
+	sat_passes_idx = 0;
+	sat_passes_count = 0;
+	memset(sat_passes, 0, sizeof(sat_passes));
+#endif
 }
 
 int sat_schedule_next_transmission(void)
