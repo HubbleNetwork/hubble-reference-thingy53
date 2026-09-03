@@ -27,4 +27,4 @@ manifest:
     - name: hubble-device-sdk
       remote: HubbleNetwork
       path: modules/lib/hubblenetwork-sdk
-      revision: b65e2ca185fe9c3831469cbbbcf74248806d1be4
+      revision: 9af0cc2032ddb2c4749127ad09681480beb68e7c
