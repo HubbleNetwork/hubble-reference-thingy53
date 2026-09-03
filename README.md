@@ -21,7 +21,7 @@ This application implements a dual-mode communication system for the Nordic Thin
 
 ### Prerequisites
 
-Before building, ensure you have a proper Zephyr development environment set up. Follow the official [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/getting_started/index.html).
+Before building, ensure you have a proper Zephyr development environment set up. Follow the official [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html).
 
 ### Initial Setup
 
@@ -35,7 +35,7 @@ pip install -r scripts/requirements.txt
 
 ```bash
 # Initialize workspace for the example-application (main branch)
-west init -m https://github.com/HubbleNetwork/hubble-thingy53 --mr main hubble-workspace
+west init -m https://github.com/HubbleNetwork/hubble-reference-thingy53 --mr main hubble-workspace
 
 # Update Zephyr modules
 cd hubble-workspace
