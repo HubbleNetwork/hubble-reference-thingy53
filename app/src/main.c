@@ -40,6 +40,10 @@ K_SEM_DEFINE(sat_sem, 0, 1);
 
 K_MUTEX_DEFINE(radio_mutex);
 
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+#include "sat_params.c"
+#endif
+
 static uint8_t _hubble_key[CONFIG_HUBBLE_KEY_SIZE];
 static struct ipc_ept ep;
 uint64_t utc_time;
@@ -160,10 +164,10 @@ int crypto_key_set(const char *key, size_t len)
 		return -EINVAL;
 	}
 
-	ret = base64_decode(_hubble_key, sizeof(_hubble_key), &olen,
-			    key, len);
+	ret = base64_decode(_hubble_key, sizeof(_hubble_key), &olen, key, len);
 	if (ret == 0) {
-		(void)hubble_nvs_write(HUBBLE_KEY_ID, _hubble_key, sizeof(_hubble_key));
+		(void)hubble_nvs_write(HUBBLE_KEY_ID, _hubble_key,
+				       sizeof(_hubble_key));
 		k_sem_give(&key_sem);
 	}
 
@@ -172,7 +176,8 @@ int crypto_key_set(const char *key, size_t len)
 
 static int _key_get(void)
 {
-	if (hubble_nvs_read(HUBBLE_KEY_ID, _hubble_key, sizeof(_hubble_key)) == sizeof(_hubble_key)) {
+	if (hubble_nvs_read(HUBBLE_KEY_ID, _hubble_key, sizeof(_hubble_key)) ==
+	    sizeof(_hubble_key)) {
 		return 0;
 	}
 
@@ -223,6 +228,14 @@ int main(void)
 		LOG_ERR("Failed to initialize Hubble BLE Network");
 		return err;
 	}
+
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+	err = hubble_sat_satellites_set(sats, ARRAY_SIZE(sats));
+	if (err != 0) {
+		LOG_ERR("Failed to set Hubble Sats");
+		return err;
+	}
+#endif
 
 	while (true) {
 		(void)sat_schedule_next_transmission();

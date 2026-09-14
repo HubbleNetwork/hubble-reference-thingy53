@@ -12,7 +12,12 @@
 #include <zephyr/ipc/ipc_service.h>
 #include <zephyr/kernel.h>
 
+#include <hubble/hubble.h>
 #include <hubble/sat.h>
+
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+#include <hubble/sat/pass_prediction.h>
+#endif
 
 #include "sat_ipc.h"
 #include "app.h"
@@ -40,14 +45,17 @@ extern struct k_sem timer_sem;
 extern uint64_t utc_time;
 
 
-#ifndef CONFIG_HUBBLE_SAMPLE_DEBUG
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+static struct hubble_sat_pass_info next_pass;
+static struct hubble_sat_device_pos device_pos;
+#else
 static uint16_t sat_passes_idx;
 static uint16_t sat_passes_count;
 static struct _sat_pass {
 	uint32_t timestamp;
 	uint16_t duration;
 } __packed sat_passes[HUBBLE_NUMBER_OF_TIMESTAMPS] = {0};
-#endif
+#endif /* CONFIG_APP_USE_PASS_PREDICTION */
 
 int sat_retransmission_set(uint8_t retransmission_s)
 {
@@ -155,18 +163,16 @@ bool sat_is_transmitting(void)
 	return _transmitting;
 }
 
+#ifndef CONFIG_APP_USE_PASS_PREDICTION
 static int sat_transmission_time_get(void)
 {
-#ifndef CONFIG_HUBBLE_SAMPLE_DEBUG
 	if (sat_passes_idx >= sat_passes_count) {
 		return -1;
 	}
 
 	return sat_passes[sat_passes_idx].duration;
-#else
-	return 120;
-#endif
 }
+#endif /* !CONFIG_APP_USE_PASS_PREDICTION */
 
 static size_t _nearest_packet_len_get(size_t pkt_len)
 {
@@ -236,6 +242,7 @@ int sat_transmit(void)
 	_transmitting = true;
 	(void)led_blink_start();
 
+#ifndef CONFIG_APP_USE_PASS_PREDICTION
 	HUBBLE_FOR_WHILE(sat_transmission_time_get() * 1000)
 	{
 		ret = hubble_sat_packet_send(&pkt, HUBBLE_SAT_RELIABILITY_NONE);
@@ -244,6 +251,12 @@ int sat_transmit(void)
 		}
 		k_sleep(K_SECONDS(_retransmission_frequency_s));
 	}
+#else
+	ret = hubble_sat_packet_send(&pkt, HUBBLE_SAT_RELIABILITY_NORMAL);
+	if (ret != 0) {
+		return ret;
+	}
+#endif /* !CONFIG_APP_USE_PASS_PREDICTION */
 
 	(void)led_blink_stop();
 	_transmitting = false;
@@ -260,7 +273,7 @@ K_TIMER_DEFINE(sat_timer, _timer_cb, NULL);
 
 int sat_pass_add(uint32_t timestamp, uint16_t duration)
 {
-#ifndef CONFIG_HUBBLE_SAMPLE_DEBUG
+#ifndef CONFIG_APP_USE_PASS_PREDICTION
 	if (sat_passes_count >= HUBBLE_NUMBER_OF_TIMESTAMPS) {
 		return -ENOSPC;
 	}
@@ -277,33 +290,56 @@ int sat_pass_add(uint32_t timestamp, uint16_t duration)
 int sat_schedule_next_transmission(void)
 {
 	uint32_t timeout;
+	uint64_t now_ms = hubble_time_get();
 
-#ifndef CONFIG_HUBBLE_SAMPLE_DEBUG
-	uint32_t now = (uint32_t)((utc_time + k_uptime_get()) / 1000);
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+	uint64_t t = now_ms;
 
+	/* A pass that already started (we are in the middle of it) is
+	 * skipped, search again from its end until we find one in the future.
+	 */
+	do {
+		if (hubble_sat_next_pass_get(t, &device_pos, &next_pass) != 0) {
+			return -1;
+		}
+		t = next_pass.start + next_pass.duration;
+	} while (next_pass.start <= now_ms);
+
+	timeout = (next_pass.start - now_ms) / MSEC_PER_SEC;
+#else
 	if (sat_passes_idx >= sat_passes_count) {
 		return -1;
 	}
 
-	while (sat_passes[sat_passes_idx].timestamp < now + 1) {
+	while (sat_passes[sat_passes_idx].timestamp <
+	       (now_ms / MSEC_PER_SEC) + 1) {
 		sat_passes_idx++;
 		if (sat_passes_idx >= sat_passes_count) {
 			return -1;
 		}
 	}
 
-	timeout = sat_passes[sat_passes_idx].timestamp - now;
-#else
-	timeout = 60;
-#endif
+	timeout = sat_passes[sat_passes_idx].timestamp - (now_ms / MSEC_PER_SEC);
+#endif /* CONFIG_APP_USE_PASS_PREDICTION */
 
 	k_timer_start(&sat_timer, K_SECONDS(timeout), K_NO_WAIT);
 
 	return 0;
 }
 
-uint16_t ble_adv_next_timestamp_get(uint32_t *timestamps, uint16_t len)
+int sat_next_transmission_get(uint32_t *timestamps, uint16_t len)
 {
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+	ARG_UNUSED(len);
+
+	if (next_pass.start == 0) {
+		return -1;
+	}
+
+	*timestamps = next_pass.start / MSEC_PER_SEC;
+
+	return 1;
+#else
 	uint16_t number_elements = MIN(len, (sat_passes_count - sat_passes_idx));
 
 	for (uint16_t i = 0; i < number_elements; i++) {
@@ -311,4 +347,16 @@ uint16_t ble_adv_next_timestamp_get(uint32_t *timestamps, uint16_t len)
 	}
 
 	return number_elements;
+#endif
+}
+
+/* Store the device location used as the observer position for pass prediction.
+ * No-op when pass prediction is disabled.
+ */
+void device_location_set(double lat, double lon)
+{
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+	device_pos.lat = lat;
+	device_pos.lon = lon;
+#endif
 }

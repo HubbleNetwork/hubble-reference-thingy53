@@ -4,9 +4,11 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import asyncio
 import os
 import signal
+import struct
 import sys
 import time
 
@@ -24,6 +26,11 @@ SPBLE_PKT_CMD = 0x02
 SPBLE_CMD_SETUTC = 0x02
 SPBLE_CMD_SETEPHEMERIS = 0x07
 SPBLE_CMD_RESETEPHEMERIS = 0x08
+SPBLE_CMD_SETLOCATION = 0x09
+
+# Default device location provisioned via SPBLE_CMD_SETLOCATION
+DEVICE_LATITUDE = 47.6062
+DEVICE_LONGITUDE = -122.3321
 
 def generate_utc_timestamps(start_time, interval, duration, count):
     global EPHEMERIS_DATA
@@ -36,7 +43,7 @@ def generate_utc_timestamps(start_time, interval, duration, count):
         EPHEMERIS_DATA.append([utc_timestamp, duration])
         current_time += interval
 
-async def scan(stop_event: asyncio.Event):
+async def scan(stop_event: asyncio.Event, latitude: float, longitude: float):
     def match_tilepro_uuid(device: BLEDevice, adv: AdvertisementData):
         for uuid in adv.service_uuids:
             if uuid.startswith("0000fca7"):
@@ -84,16 +91,29 @@ async def scan(stop_event: asyncio.Event):
 
             await client.write_gatt_char(SMARTPIN_CHARACTERISTIC_UUID, data, response=True)
 
+            # Provision device location (latitude, longitude as little-endian doubles)
+            data = bytearray([SPBLE_PKT_CMD, SPBLE_CMD_SETLOCATION])
+            data += struct.pack("<dd", latitude, longitude)
+
+            await client.write_gatt_char(SMARTPIN_CHARACTERISTIC_UUID, data, response=True)
+
     else:
         print("No device")
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Hubble Thingy53 BLE companion")
+    parser.add_argument("--latitude", "--lat", type=float, default=DEVICE_LATITUDE,
+                        help="Device latitude in decimal degrees (default: %(default)s)")
+    parser.add_argument("--longitude", "--lon", type=float, default=DEVICE_LONGITUDE,
+                        help="Device longitude in decimal degrees (default: %(default)s)")
+    args = parser.parse_args()
+
     stop_event = asyncio.Event()
     signal.signal(signal.SIGINT, lambda _, __: stop_event.set())
 
     generate_utc_timestamps(int(time.time()) + 20, 100, 60, 3)
 
-    asyncio.run(scan(stop_event))
+    asyncio.run(scan(stop_event, args.latitude, args.longitude))
 
 
 if __name__ == '__main__':

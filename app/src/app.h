@@ -31,12 +31,12 @@ extern struct k_mutex radio_mutex;
  * channel is sampled automatically.
  */
 enum sat_payload_type {
-	CUSTOM,                                  /**< Arbitrary caller-supplied bytes. */
+	CUSTOM, /**< Arbitrary caller-supplied bytes. */
 	GAUGE_VOLTAGE = SENSOR_CHAN_GAUGE_VOLTAGE, /**< Battery gauge voltage. */
 	TEMP = SENSOR_CHAN_AMBIENT_TEMP,           /**< Ambient temperature. */
 	PRESSURE = SENSOR_CHAN_PRESS,              /**< Atmospheric pressure. */
 	HUMIDITY = SENSOR_CHAN_HUMIDITY,           /**< Relative humidity. */
-	INVALID,                                 /**< Sentinel / error value. */
+	INVALID, /**< Sentinel / error value. */
 };
 
 /**
@@ -74,5 +74,16 @@ int crypto_key_set(const char *key, size_t len);
  * @return true if a key has been set, false otherwise.
  */
 bool crypto_key_is_set(void);
+
+/**
+ * @brief Set the device's geographic location for satellite pass prediction.
+ *
+ * The coordinates are used to compute upcoming satellite passes. This is a
+ * no-op unless @c CONFIG_APP_USE_PASS_PREDICTION is enabled.
+ *
+ * @param lat Latitude in decimal degrees (WGS-84), positive north.
+ * @param lon Longitude in decimal degrees (WGS-84), positive east.
+ */
+void device_location_set(double lat, double lon);
 
 #endif /* APP_H */

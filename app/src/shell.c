@@ -16,7 +16,11 @@
 #include "ble.h"
 #include "sat.h"
 
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+#define NUMBER_OF_TIMESTAMP_TO_PRINT 1
+#else
 #define NUMBER_OF_TIMESTAMP_TO_PRINT 4
+#endif
 
 K_MUTEX_DEFINE(_mutex);
 
@@ -113,7 +117,7 @@ static int _cmd_status(const struct shell *sh, size_t argc, char **argv)
 {
 	extern uint64_t utc_time;
 	int ret = 0;
-	uint16_t len;
+	int len;
 	uint32_t timestamps[NUMBER_OF_TIMESTAMP_TO_PRINT];
 
 #ifdef CONFIG_FUEL_GAUGE
@@ -141,7 +145,7 @@ static int _cmd_status(const struct shell *sh, size_t argc, char **argv)
 		shell_print(sh, "Transmitting to satellite");
 	}
 
-	len = ble_adv_next_timestamp_get(timestamps, NUMBER_OF_TIMESTAMP_TO_PRINT);
+	len = sat_next_transmission_get(timestamps, NUMBER_OF_TIMESTAMP_TO_PRINT);
 
 	if (len > 0) {
 		shell_print(sh, "Next scheduled transmissions:");
@@ -156,7 +160,6 @@ static int _cmd_status(const struct shell *sh, size_t argc, char **argv)
 			    t.tm_mon + 1, t.tm_mday, t.tm_year + 1900,
 			    t.tm_hour, t.tm_min, t.tm_sec, timestamps[i]);
 	}
-
 
 end:
 #ifdef CONFIG_FUEL_GAUGE
@@ -200,8 +203,10 @@ static int _cmd_ble(const struct shell *sh, size_t argc, char **argv)
 	} else if (strncmp(argv[1], "disable", sizeof("disable")) == 0) {
 		ble_disable(true);
 	} else {
-		shell_print(sh, "Invalid parameter %s. Use: bluetooth <disable|enable>",
-		            argv[1]);
+		shell_print(
+			sh,
+			"Invalid parameter %s. Use: bluetooth <disable|enable>",
+			argv[1]);
 		return -EINVAL;
 	}
 

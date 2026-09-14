@@ -31,6 +31,12 @@ config HUBBLE_SAMPLE_ADV_FREQUENCY
         The maximum time to generate a new advertisement packet.
 	It must be less than 24h.
 
+config APP_USE_PASS_PREDICTION
+    bool "Use pass prediction instead of timestamps"
+    help
+        Use Hubble Pass prediction algorithm to determine when
+	to transmit to satellite.
+
 config APP_BLINK_LED
     bool "Blink LED during satellite transmission"
     select GPIO
