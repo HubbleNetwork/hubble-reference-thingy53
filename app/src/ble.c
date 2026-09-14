@@ -31,6 +31,7 @@ LOG_MODULE_REGISTER(ble);
 #define SPBLE_PKT_CMD               0x02
 #define SPBLE_CMD_SETUTC            0x02
 #define SPBLE_CMD_SETEPHEMERIS      0x07
+#define SPBLE_CMD_SETLOCATION       0x09
 
 #define SVC_UUID                                                               \
 	BT_UUID_128_ENCODE(0xef2dc9a1, 0x40be, 0x44b6, 0x9dda, 0x8a00fcd61dc0)
@@ -159,7 +160,8 @@ static ssize_t _chr_write_cb(struct bt_conn *conn,
 		switch (cmd) {
 		case SPBLE_CMD_SETUTC:
 			if (len != 10) {
-				return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+				return BT_GATT_ERR(
+					BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
 			} else {
 				memcpy(&utc_time, req + 2, sizeof(utc_time));
 				hubble_time_set(utc_time);
@@ -167,9 +169,11 @@ static ssize_t _chr_write_cb(struct bt_conn *conn,
 			}
 			break;
 		case SPBLE_CMD_SETEPHEMERIS:
+#ifndef CONFIG_APP_USE_PASS_PREDICTION
 			if (len > 2 + sizeof(uint32_t)) {
 				uint32_t count = 0;
-				size_t entry_size = sizeof(uint32_t) + sizeof(uint16_t);
+				size_t entry_size =
+					sizeof(uint32_t) + sizeof(uint16_t);
 				uint8_t *p = (req + 2) + sizeof(uint32_t);
 				size_t available = len - 2 - sizeof(uint32_t);
 
@@ -192,6 +196,22 @@ static ssize_t _chr_write_cb(struct bt_conn *conn,
 					available -= entry_size;
 				}
 			}
+#endif /* CONFIG_APP_USE_PASS_PREDICTION */
+			break;
+		case SPBLE_CMD_SETLOCATION:
+#ifdef CONFIG_APP_USE_PASS_PREDICTION
+			if (len != 2 + 2 * sizeof(double)) {
+				return BT_GATT_ERR(
+					BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+			} else {
+				double lat, lon;
+				memcpy(&lat, (req + 2), sizeof(double));
+				memcpy(&lon, (req + 2) + sizeof(double),
+				       sizeof(double));
+
+				device_location_set(lat, lon);
+			}
+#endif /* CONFIG_APP_USE_PASS_PREDICTION */
 			break;
 		default:
 			break;

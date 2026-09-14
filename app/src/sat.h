@@ -99,4 +99,19 @@ int sat_transmit(void);
  */
 bool sat_is_transmitting(void);
 
+/**
+ * @brief Get the next scheduled transmission window.
+ *
+ * Only available when pass prediction (CONFIG_APP_USE_PASS_PREDICTION) is
+ * enabled. Returns the start time of the pass most recently armed by
+ * sat_schedule_next_transmission().
+ *
+ * @param timestamps Buffer filled with upcoming pass start times, as Unix
+ *                   time in seconds.
+ * @param len        Number of entries @p timestamps can hold.
+ * @return Number of timestamps written to @p timestamps (0 or more), or -1
+ *         when no window is scheduled.
+ */
+int sat_next_transmission_get(uint32_t *timestamps, uint16_t len);
+
 #endif

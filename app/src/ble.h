@@ -46,19 +46,6 @@ int ble_adv_start(void);
  */
 void ble_adv_stop(void);
 
-/**
- * @brief Get next timestamps for sat transmissions.
- *
- * Scans @p timestamps and returns the index of the earliest timestamp that
- * falls after the current time, used to select the next available BLE
- * advertisement slot.
- *
- * @param timestamps Array of candidate timestamps (absolute, in milliseconds).
- * @param len        Number of entries in @p timestamps.
- * @return Index of the next upcoming timestamp, or @p len if none are found.
- */
-uint16_t ble_adv_next_timestamp_get(uint32_t *timestamps, uint16_t len);
-
 void ble_enable(bool user_requested);
 
 void ble_disable(bool user_requested);
