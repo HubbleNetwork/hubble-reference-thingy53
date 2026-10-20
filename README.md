@@ -31,7 +31,7 @@ Before building, ensure you have a proper Zephyr development environment set up.
 pip install -r scripts/requirements.txt
 ```
 
-2. Initialize the workspace folder where the `hubble-thingy53` and all Zephyr modules will be cloned:
+2. Initialize the workspace folder where the `hubble-reference-thingy53` and all Zephyr modules will be cloned:
 
 ```bash
 # Initialize workspace for the example-application (main branch)
@@ -46,7 +46,7 @@ west blobs fetch
 ### Building for Thingy53
 
 ```bash
-cd hubble-thingy53
+cd hubble-reference-thingy53
 west build -p -b thingy53/nrf5340/cpuapp app --sysbuild
 ```
 
