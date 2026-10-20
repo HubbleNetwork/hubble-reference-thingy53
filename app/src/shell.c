@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <hubble/hubble.h>
+
 #include "app.h"
 #include "ble.h"
 #include "sat.h"
@@ -176,6 +178,25 @@ end:
 	return ret;
 }
 
+static int _cmd_time(const struct shell *sh, size_t argc, char **argv)
+{
+	uint64_t now_ms = hubble_time_get();
+	struct tm t;
+	time_t ts;
+
+	if (now_ms == 0) {
+		shell_print(sh, "Waiting for time synchronization");
+		return 0;
+	}
+
+	ts = (time_t)(now_ms / MSEC_PER_SEC);
+	gmtime_r(&ts, &t);
+	shell_print(sh, "%02d/%02d/%04d %02d:%02d:%02d UTC", t.tm_mon + 1,
+		    t.tm_mday, t.tm_year + 1900, t.tm_hour, t.tm_min, t.tm_sec);
+
+	return 0;
+}
+
 static int _cmd_key(const struct shell *sh, size_t argc, char **argv)
 {
 	if (argc != 2) {
@@ -217,10 +238,7 @@ SHELL_CMD_REGISTER(
 	retransmission, NULL,
 	"Set retransmission frequency (in seconds). Available options: [0-10]",
 	_cmd_retransmission);
-SHELL_CMD_REGISTER(
-	key, NULL,
-	"Set a cryptography key (in base64)",
-	_cmd_key);
+SHELL_CMD_REGISTER(key, NULL, "Set a cryptography key (in base64)", _cmd_key);
 SHELL_CMD_REGISTER(
 	payload, NULL,
 	"Set payload to transmit. Available options: temperature, pressure, "
@@ -230,11 +248,12 @@ SHELL_CMD_REGISTER(
 	status, NULL,
 	"Read device status (beaconing / transmitting sat / waiting)",
 	_cmd_status);
+SHELL_CMD_REGISTER(time, NULL, "Print the current device time (UTC)", _cmd_time);
 SHELL_CMD_REGISTER(
 	sensor,
 	NULL, "Read sensor data. Available options: temperature, pressure or humidity",
 	_cmd_sensor);
 SHELL_CMD_REGISTER(
-	bluetooth,
-	NULL, "Disable or enable Bluetooth. Available options are enable and disable",
+	bluetooth, NULL,
+	"Disable or enable Bluetooth. Available options are enable and disable",
 	_cmd_ble);
