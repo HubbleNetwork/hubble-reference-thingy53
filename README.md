@@ -10,10 +10,11 @@ This application implements a dual-mode communication system for the Nordic Thin
 2. [Provisioning a New Device](#provisioning-a-new-device)
 3. [Flashing Thingy53 using nRF-DK as Programmer](#flashing-thingy53-using-nrf-dk-as-programmer)
 4. [Transmission Logic](#transmission-logic)
-5. [Hardware Button](#hardware-button)
-6. [LED Indication](#led-indication)
-7. [Shell Commands](#shell-commands)
-8. [Configuration Options](#configuration-options)
+5. [Satellite Pass Prediction](#satellite-pass-prediction)
+6. [Hardware Button](#hardware-button)
+7. [LED Indication](#led-indication)
+8. [Shell Commands](#shell-commands)
+9. [Configuration Options](#configuration-options)
 
 ---
 
@@ -49,6 +50,19 @@ west blobs fetch
 cd hubble-reference-thingy53
 west build -p -b thingy53/nrf5340/cpuapp app --sysbuild
 ```
+
+> **Note:** Satellite pass prediction is enabled by default (`CONFIG_APP_USE_PASS_PREDICTION=y`).
+> When it is enabled, the build fetches up-to-date orbital parameters from the Hubble API and
+> generates `app/src/sat_params.c` at configure time. This requires the `HUBBLE_API_TOKEN`
+> environment variable to be set, otherwise the build fails:
+>
+> ```bash
+> export HUBBLE_API_TOKEN=<your-api-token>
+> west build -p -b thingy53/nrf5340/cpuapp app --sysbuild
+> ```
+>
+> To build without pass prediction (using ephemeris timestamps supplied over BLE instead), set
+> `CONFIG_APP_USE_PASS_PREDICTION=n`, in which case no API token is needed.
 
 ## Build Output
 
@@ -206,9 +220,11 @@ The Thingy53 uses a dual-core architecture:
    - Advertisement frequency is controlled by `CONFIG_HUBBLE_SAMPLE_ADV_FREQUENCY` (default: 28800 seconds = 8 hours)
 
 2. **Satellite Window Scheduling**:
-   - Device receives ephemeris data (satellite pass timestamps) from companion app
-   - Up to 300 satellite pass windows can be stored
-   - Each window contains a timestamp (Unix time in seconds) and duration (transmission window length in seconds)
+
+   The next transmission window is determined in one of two mutually exclusive ways, selected at build time by `CONFIG_APP_USE_PASS_PREDICTION`:
+
+   - **Pass prediction (default)**: The device computes upcoming satellite passes on-board from orbital parameters baked into the firmware and the device's own geographic location. The companion app provisions the location once over BLE. See [Satellite Pass Prediction](#satellite-pass-prediction).
+   - **Ephemeris timestamps** (`CONFIG_APP_USE_PASS_PREDICTION=n`): The device receives pass timestamps from the companion app. Up to 300 satellite pass windows can be stored, each containing a timestamp (Unix time in seconds) and a duration (transmission window length in seconds).
 
 3. **Timer Management**:
    - BLE advertisement timer runs continuously, refreshing advertisements periodically
@@ -231,12 +247,13 @@ The Thingy53 uses a dual-core architecture:
 
 3. **Transmission Loop**:
    - Network core enables satellite radio
-   - For the duration of the transmission window:
+   - **Ephemeris mode** (`CONFIG_APP_USE_PASS_PREDICTION=n`): for the duration of the transmission window, the device repeatedly:
      - Enables power amplifier (PA) GPIO
-     - Transmits satellite packet
-     - Waits for retransmission interval
+     - Transmits satellite packet (`HUBBLE_SAT_RELIABILITY_NONE`)
+     - Waits for the retransmission interval
      - Disables PA GPIO
      - Repeats until window duration expires
+   - **Pass prediction mode** (default): the device sends a single packet with `HUBBLE_SAT_RELIABILITY_NORMAL`, letting the Hubble SDK handle reliability, instead of looping with a fixed retransmission interval
    - Network core sends completion acknowledgment via IPC
 
 4. **Return to BLE**:
@@ -249,7 +266,39 @@ The Thingy53 uses a dual-core architecture:
 
 - **BLE Advertisement**: Refreshed every `CONFIG_HUBBLE_SAMPLE_ADV_FREQUENCY` seconds (default: 8 hours)
 - **Satellite Windows**: Scheduled based on ephemeris data received from companion app
-- **Retransmission**: Configurable 0-10 seconds between packets during satellite transmission
+- **Retransmission**: Configurable 0-10 seconds between packets during satellite transmission (ephemeris mode only)
+
+---
+
+## Satellite Pass Prediction
+
+When `CONFIG_APP_USE_PASS_PREDICTION` is enabled (the default), the device computes upcoming satellite passes on-board instead of relying on pre-computed timestamps pushed by the companion app.
+
+### Orbital Parameters
+
+The build fetches up-to-date orbital parameters (EPP) from the Hubble API and generates `app/src/sat_params.c`:
+
+- The generation runs at CMake configure time via the `orbital_params_fetch.py` tool shipped with the Hubble device SDK.
+- It requires the `HUBBLE_API_TOKEN` environment variable; the build fails with a fatal error if it is unset.
+- The generated file defines a `sats[]` array that is registered with the SDK at boot through `hubble_sat_satellites_set()`.
+
+### Device Location
+
+Pass prediction needs the device's observer position (latitude/longitude). This is provisioned over BLE by the companion app:
+
+- Command `SPBLE_CMD_SETLOCATION` (`0x09`) carries latitude and longitude as two little-endian IEEE-754 doubles.
+- The payload is exactly `2 + 2 * sizeof(double)` bytes; malformed lengths are rejected with an invalid-length ATT error.
+- The reference `scripts/companion.py` sends the location after setting Unix time. The coordinates default to `47.6062, -122.3321` and can be overridden with the `--latitude`/`--lat` and `--longitude`/`--lon` command-line options:
+
+  ```bash
+  python3 scripts/companion.py --lat 37.7749 --lon -122.4194
+  ```
+
+When pass prediction is enabled, the ephemeris command (`SPBLE_CMD_SETEPHEMERIS`) is ignored; when it is disabled, the location command is ignored.
+
+### Scheduling
+
+On each cycle the device calls into the SDK to find the next pass from the current time, the orbital parameters, and the provisioned location, then arms a timer for the start of that window. The upcoming window's start time is reported by the `status` shell command.
 
 ---
 
@@ -326,6 +375,8 @@ retransmission 2
 
 **Default:** Configured via `CONFIG_HUBBLE_RETRANSMISSION_FREQUENCY` (default: 4 seconds)
 
+**Note:** This interval only applies in ephemeris mode. With pass prediction enabled (the default), each window sends a single packet and the retransmission interval is unused.
+
 ---
 
 #### `payload <type>`
@@ -384,7 +435,7 @@ When a cryptographic key has not been provisioned:
 Waiting for hubble cryptographic key
 ```
 
-When beaconing (BLE mode):
+When beaconing (BLE mode) with ephemeris timestamps (`CONFIG_APP_USE_PASS_PREDICTION=n`):
 ```
 Beaconing
 Next scheduled transmissions:
@@ -394,6 +445,13 @@ Next scheduled transmissions:
 	01/01/2025 09:00:00 UTC (1735722000)
 ```
 
+When beaconing (BLE mode) with pass prediction (default):
+```
+Beaconing
+Next scheduled transmission:
+	01/01/2025 00:00:00 UTC (1735689600)
+```
+
 When transmitting to satellite:
 ```
 Transmitting to satellite
@@ -401,8 +459,24 @@ Transmitting to satellite
 
 **Information Displayed:**
 - Current mode: "Beaconing" or "Transmitting to satellite"
-- Next scheduled satellite transmission timestamps in `MM/DD/YYYY HH:MM:SS UTC (unix_ts)` format (up to 4 upcoming windows)
+- Next scheduled satellite transmission timestamp(s) in `MM/DD/YYYY HH:MM:SS UTC (unix_ts)` format. In ephemeris mode up to 4 upcoming windows are shown; in pass prediction mode the single next computed window is shown.
 - Battery charge percentage and voltage (when fuel gauge is enabled)
+
+---
+
+#### `time`
+
+Prints the current device time (UTC), derived from the synchronized Hubble network time.
+
+**Output:**
+```
+01/01/2025 00:00:00 UTC
+```
+
+If the device has not yet synchronized its time:
+```
+Waiting for time synchronization
+```
 
 ---
 
@@ -425,6 +499,14 @@ Transmitting to satellite
 **Type:** String
 **Default:** (empty)
 **Description:** Base64-encoded 32-byte cryptographic device key.
+
+---
+
+#### `CONFIG_APP_USE_PASS_PREDICTION`
+
+**Type:** Boolean
+**Default:** enabled (`y` in `app/prj.conf`)
+**Description:** Use the Hubble pass-prediction algorithm to determine when to transmit to satellite, instead of ephemeris timestamps pushed over BLE. When enabled, the build generates `app/src/sat_params.c` from orbital parameters fetched from the Hubble API (requires the `HUBBLE_API_TOKEN` environment variable), the device location is provisioned over BLE, and each pass sends a single packet with normal reliability. When disabled, the device relies on ephemeris timestamps and no API token is required at build time. See [Satellite Pass Prediction](#satellite-pass-prediction).
 
 ---
 
