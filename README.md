@@ -89,6 +89,57 @@ The key is written to non-volatile storage (NVS) and survives reboots. On subseq
 
 ---
 
+## Satellite pass schedule (companion)
+
+This sample does **not** invent a fixed TX cadence. The device stores up to **300**
+`[start_unix_s, duration_s]` windows in RAM. `scripts/companion.py` fills that
+table from live orbital parameters and a pass predictor that matches the Hubble
+Device SDK algorithms (point or rectangular region).
+
+### Prerequisites
+
+1. Device key set (`key <base64>` or compile-time key).
+2. Bluetooth on and UTC **unset** so the device is connectable:
+   - Shell: `bluetooth enable` then `status` → `Waiting for time synchronization`
+   - If already `Beaconing`, reboot/reset to clear UTC, then enable Bluetooth again.
+3. Host Python deps: `pip install -r scripts/requirements.txt`
+4. API token for the ephemeris endpoint:
+
+```bash
+export HUBBLE_API_TOKEN=<token from Dash → Developer Tools → API Tokens>
+```
+
+### Predict and upload
+
+```bash
+# Point location (prefer explicit coordinates over IP geo fallback)
+python3 scripts/companion.py --location 47.6062 -122.3321
+
+# Or a bounding box / region (see --help for --region)
+python3 scripts/companion.py --bbox 47.1067 49.0676 -123.4593 -121.3155
+
+# Preview only (no BLE)
+python3 scripts/companion.py --location 47.6062 -122.3321 --dry-run
+```
+
+Companion clears any previous table (`RESETEPHEMERIS`), uploads windows in small
+GATT batches, then syncs UTC. After success, `status` should show `Beaconing`
+and upcoming TX times.
+
+### Sample contract (keep this README in sync with the app only)
+
+| Item | Behavior in this sample |
+|------|-------------------------|
+| Storage | Up to 300 windows in RAM; cleared on reboot/power-loss |
+| Upload | SmartPin cmds: reset `0x08`, set `0x07`, UTC `0x02` |
+| Point mode | Next passes at lat/lon using SDK elevation footprint (~30° floor) |
+| Region / bbox | Same footprint at region center **plus** half `lon_range`; duration includes lat transit + `--duration` (default 160 s) |
+| Optional filter | `HUBBLE_TARGET_SATELLITE_IDS=id1,id2` |
+
+UTC and the pass table are **not** persisted. The device key in NVS is.
+
+---
+
 ## Flashing Thingy53 using nRF-DK as Programmer
 
 The Thingy53 can be flashed using an nRF Development Kit (nRF-DK) such as the nRF52840 DK or nRF5340 DK as a programmer.
@@ -206,9 +257,9 @@ The Thingy53 uses a dual-core architecture:
    - Advertisement frequency is controlled by `CONFIG_HUBBLE_SAMPLE_ADV_FREQUENCY` (default: 28800 seconds = 8 hours)
 
 2. **Satellite Window Scheduling**:
-   - Device receives ephemeris data (satellite pass timestamps) from companion app
-   - Up to 300 satellite pass windows can be stored
-   - Each window contains a timestamp (Unix time in seconds) and duration (transmission window length in seconds)
+   - Companion uploads predicted pass windows (see [Satellite pass schedule](#satellite-pass-schedule-companion))
+   - Up to 300 `[timestamp, duration]` entries in RAM
+   - Device transmits only during those windows (not on a fixed interval)
 
 3. **Timer Management**:
    - BLE advertisement timer runs continuously, refreshing advertisements periodically
